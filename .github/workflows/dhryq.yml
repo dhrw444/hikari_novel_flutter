@@ -60,10 +60,9 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Copy signing init script to Gradle
-        run: |
-          mkdir -p ~/.gradle/init.d
-          cp release-signing-init.gradle.kts ~/.gradle/init.d/release-signing-init.gradle.kts
+      # CI运行时临时注入签名脚本，只在本次构建生效，不会提交到仓库
+      - name: Inject signing config apply statement
+        run: echo 'apply(from = "signing-config.gradle.kts")' >> android/app/build.gradle.kts
 
       - name: Build signed release APK
         env:
