@@ -60,12 +60,17 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Copy signing init script to Gradle
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cp release-signing-init.gradle.kts ~/.gradle/init.d/release-signing-init.gradle.kts
+
       - name: Build signed release APK
         env:
           STORE_PWD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PWD: ${{ secrets.KEY_PASSWORD }}
-        run: flutter build apk --release --android-skip-build-dependency-validation -- -I ../../release-signing-init.gradle.kts
+        run: flutter build apk --release --android-skip-build-dependency-validation
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
