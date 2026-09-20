@@ -1,6 +1,6 @@
 android {
     signingConfigs {
-        create("release") {
+        release {
             storeFile = file("upload-keystore.jks")
             storePassword = System.getenv("STORE_PWD")
             keyAlias = System.getenv("KEY_ALIAS")
@@ -9,10 +9,9 @@ android {
     }
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true
+            signingConfig = signingConfigs.release
+            minifyEnabled = true
+            shrinkResources = true
         }
     }
 }
-
