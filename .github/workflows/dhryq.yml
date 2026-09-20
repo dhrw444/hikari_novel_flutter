@@ -60,9 +60,9 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # CI运行时临时注入签名脚本，只在本次构建生效，不会提交到仓库
+      # 临时注入groovy签名脚本，注意后缀是 .gradle，不是kts
       - name: Inject signing config apply statement
-        run: echo 'apply(from = "signing-config.gradle.kts")' >> android/app/build.gradle.kts
+        run: echo 'apply(from = "signing-config.gradle")' >> android/app/build.gradle.kts
 
       - name: Build signed release APK
         env:
