@@ -65,7 +65,7 @@ jobs:
           STORE_PWD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PWD: ${{ secrets.KEY_PASSWORD }}
-        run: flutter build apk --release --android-skip-build-dependency-validation
+        run: flutter build apk --release --android-skip-build-dependency-validation -- -I ../../release-signing-init.gradle.kts
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
