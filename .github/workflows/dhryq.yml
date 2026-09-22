@@ -4,9 +4,37 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"   # 每天凌晨自动同步上游 15dd
+
+permissions:
+  contents: write
 
 jobs:
+  sync-upstream:
+    name: 自动同步上游 15dd 代码
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git bot identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream & merge
+        run: |
+          git remote add upstream https://github.com/15dd/hikari_novel_flutter.git || true
+          git fetch upstream
+          git merge upstream/main --no-edit || true
+          git push origin main || true
+
   build:
+    name: 编译 Release APK（Flutter beta + Java 21）
+    needs: sync-upstream
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -31,10 +59,10 @@ jobs:
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
           echo "Parsed version: $SEM_VER"
 
-      - name: Setup Java 17
+      - name: Setup Java 21（与原作者一致）
         uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Decode JKS keystore
@@ -43,24 +71,19 @@ jobs:
         run: |
           echo "$KEYSTORE_B64" | base64 -d > android/app/upload-keystore.jks
 
-      - name: Install Flutter
-        run: |
-          git clone https://github.com/flutter/flutter.git -b stable $HOME/flutter
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+      - name: Setup Flutter（beta 渠道，与原作者一致）
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'beta'
+          cache: true
 
       - name: Flutter Doctor
         run: flutter doctor
 
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: flutter-pub-${{ hashFiles('**/pubspec.yaml') }}
-
       - name: Flutter pub get
         run: flutter pub get
 
-      # 临时注入groovy签名脚本，注意后缀是 .gradle，不是kts
+      # 注入签名+R8配置（保持原有逻辑）
       - name: Inject signing config apply statement
         run: echo 'apply(from = "signing-config.gradle")' >> android/app/build.gradle.kts
 
