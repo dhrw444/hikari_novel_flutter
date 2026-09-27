@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   sync-upstream:
-    name: 自动同步上游 15dd 代码
+    name: 自动同步上游 15dd 代码（冲突直接失败）
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -25,16 +25,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Add upstream & merge
+      - name: Fetch upstream代码与标签
         run: |
           git remote add upstream https://github.com/15dd/hikari_novel_flutter.git || true
-          git fetch upstream
-          git merge upstream/main --no-edit || true
-          git push origin main || true
+          git fetch upstream --tags
+
+      - name: Merge上游main，遇到冲突直接失败退出
+        run: |
+          git merge --no-edit upstream/main
+          git status
+
+      - name: 无冲突则推送代码与标签
+        run: |
+          git push origin main
+          git push origin --tags
 
   build:
     name: 编译 Release APK（Flutter beta + Java 21）
-    needs: sync-upstream
+    needs: sync-upstream   # sync任务失败，build完全不运行
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -54,10 +62,10 @@ jobs:
         id: get_version
         run: |
           VERSION_RAW=$(grep '^version:' pubspec.yaml | awk '{print $2}')
-          SEM_VER=${VERSION_RAW%+*}
-          NEW_TAG="v$SEM_VER"
+          NEW_TAG="v$VERSION_RAW"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "Parsed version: $SEM_VER"
+          echo "VERSION_RAW=$VERSION_RAW"
+          echo "NEW_TAG=$NEW_TAG"
 
       - name: Setup Java 21（与原作者一致）
         uses: actions/setup-java@v5
@@ -83,10 +91,6 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # 注入签名+R8配置（保持原有逻辑）
-      - name: Inject signing config apply statement
-        run: echo 'apply(from = "signing-config.gradle")' >> android/app/build.gradle.kts
-
       - name: Build signed release APK
         env:
           STORE_PWD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -106,20 +110,20 @@ jobs:
         env:
           NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
         run: |
-          if git ls-remote --tags origin "${NEW_TAG}" | grep -q "${NEW_TAG}$"; then
+          echo "检查标签: $NEW_TAG"
+          if git ls-remote --tags origin | grep "/tags/${NEW_TAG}$"; then
             echo "EXISTS=true" >> $GITHUB_OUTPUT
-            echo "Remote tag ${NEW_TAG} already exists, skip release creation."
+            echo "⚠️标签 $NEW_TAG 已存在，跳过发布release"
           else
             echo "EXISTS=false" >> $GITHUB_OUTPUT
-            echo "Remote tag ${NEW_TAG} not found, will create release with APK."
+            echo "✅标签 $NEW_TAG 不存在，准备创建Release"
           fi
 
       - name: Create Tag & Publish Release (with APK)
         if: steps.check_tag.outputs.EXISTS == 'false'
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ steps.get_version.outputs.NEW_TAG }}
           files: build/app/outputs/flutter-apk/app-release.apk
           generate_release_notes: true
