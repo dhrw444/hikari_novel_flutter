@@ -43,3 +43,4 @@ kotlin {
 flutter {
     source = "../.."
 }
+apply(from = "signing-config.gradle")
