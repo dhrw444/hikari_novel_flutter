@@ -95,7 +95,7 @@ class SettingPage extends StatelessWidget {
                   showRadioListSheet(
                     context,
                     value: controller.wenku8Node.value,
-                    values: [(Wenku8Node.wwwWenku8Net, Wenku8Node.wwwWenku8Net.node), (Wenku8Node.wwwWenku8Cc, Wenku8Node.wwwWenku8Cc.node)],
+                    values: [(Wenku8Node.wwwWenku8Net, Wenku8Node.wwwWenku8Net.node), (Wenku8Node.wwwWenku8Cc, Wenku8Node.wwwWenku8Cc.node), (Wenku8Node.proxyWorker, Wenku8Node.proxyWorker.node)],
                     title: "node".tr,
                   ).then((value) async {
                     if (value != null) controller.changeWenku8Node(value);
