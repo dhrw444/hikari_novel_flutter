@@ -98,12 +98,20 @@ jobs:
           KEY_PWD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release --android-skip-build-dependency-validation
 
+      - name: Rename APK with tag
+        env:
+          NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
+        run: |
+          cd build/app/outputs/flutter-apk
+          cp app-release.apk "hikari_novel_${NEW_TAG}.apk"
+          ls -l
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build-apk-output
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
 
       - name: Check remote tag exists
         id: check_tag
@@ -125,5 +133,5 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ steps.get_version.outputs.NEW_TAG }}
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
           generate_release_notes: true
