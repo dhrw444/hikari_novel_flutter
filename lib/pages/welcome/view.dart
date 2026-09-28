@@ -44,6 +44,13 @@ class WelcomePage extends StatelessWidget {
                     style: controller.wenku8Node == Wenku8Node.wwwWenku8Cc ? TextStyle(color: primaryColor, fontWeight: FontWeight.bold) : null,
                   ),
                 ),
+                PopupMenuItem<Wenku8Node>(
+                  value: Wenku8Node.proxyWorker,
+                  child: Text(
+                    Wenku8Node.proxyWorker.node,
+                    style: controller.wenku8Node == Wenku8Node.proxyWorker ? TextStyle(color: primaryColor, fontWeight: FontWeight.bold) : null,
+                  ),
+                ),
               ],
               child: Row(
                 mainAxisSize: MainAxisSize.min,
