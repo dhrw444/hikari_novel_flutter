@@ -288,8 +288,9 @@ class _ApiClient {
       return ckjar.Cookie(kv[0], kv.sublist(1).join('='));
     }).toList();
 
-    _cookieJar.saveFromResponse(Uri.parse(Wenku8Node.wwwWenku8Cc.node), cookies);
-    _cookieJar.saveFromResponse(Uri.parse(Wenku8Node.wwwWenku8Net.node), cookies);
+    for (final node in Wenku8Node.values) {
+      _cookieJar.saveFromResponse(Uri.parse(node.node), cookies);
+    }
   }
 
   void deleteCookie() => _cookieJar.deleteAll();
@@ -334,8 +335,17 @@ class _ApiClient {
     if (response.statusCode != null && response.statusCode! >= 300 && response.statusCode! < 400) {
       final location = response.headers.value('location');
       if (location != null) {
+        // Dio 的 TLS 指纹会触发 CF 盾，绝不跟随跳转到 login.php 的重定向，直接视为登录态失效
+        if (location.contains('login.php')) {
+          throw DioException(
+            requestOptions: response.requestOptions,
+            message: 'Session expired, please re-login',
+          );
+        }
+        // location 可能是绝对 URL 也可能是相对路径，相对路径时拼接到当前节点
         final node = LocalStorageService.instance.getWenku8Node();
-        final redirectedResponse = await dio.get("${node.node}/$location");
+        final redirectUrl = location.startsWith('http') ? location : "${node.node}/${location.startsWith('/') ? location.substring(1) : location}";
+        final redirectedResponse = await dio.get(redirectUrl);
         return redirectedResponse.data;
       }
     }
