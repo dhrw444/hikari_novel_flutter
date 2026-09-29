@@ -5,6 +5,8 @@ const String kAppName = "Hikari Novel";
 
 const String kLatestUrl = "https://api.github.com/repos/dhrw444/hikari_novel_flutter/releases/latest"; //指向本仓库 release，自建节点分发用
 
+const String kReleasesPageUrl = "https://github.com/dhrw444/hikari_novel_flutter/releases/latest"; //release 页面，浏览器下载兜底
+
 const Map<String, String> kUserAgent = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
 };

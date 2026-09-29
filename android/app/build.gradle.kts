@@ -43,4 +43,10 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // 内置更新：FileProvider（androidx.core.content.FileProvider）用于把缓存 APK 交给系统安装器
+    implementation("androidx.core:core:1.13.1")
+}
+
 apply(from = "signing-config.gradle")

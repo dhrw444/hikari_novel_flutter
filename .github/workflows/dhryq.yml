@@ -62,7 +62,7 @@ jobs:
         id: get_version
         run: |
           VERSION_RAW=$(grep '^version:' pubspec.yaml | awk '{print $2}')
-          NEW_TAG="v$VERSION_RAW"
+          NEW_TAG="$VERSION_RAW"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
           echo "VERSION_RAW=$VERSION_RAW"
           echo "NEW_TAG=$NEW_TAG"

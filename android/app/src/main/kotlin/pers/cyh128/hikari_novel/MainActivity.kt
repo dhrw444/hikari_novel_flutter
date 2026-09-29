@@ -2,11 +2,16 @@ package pers.cyh128.hikari_novel
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.view.KeyEvent
 import androidx.annotation.NonNull
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val intentChannelName = "hikari/system_intents"
@@ -80,6 +85,46 @@ class MainActivity : FlutterActivity() {
                             }
                         } catch (e: Exception) {
                             result.error("INTENT_FAILED", e.message, null)
+                        }
+                    }
+
+                    "installApk" -> {
+                        // 内置更新：把缓存目录里已下载的 APK 交给系统安装器
+                        val path = call.argument<String>("path")
+                        if (path.isNullOrBlank()) {
+                            result.error("ARG_ERROR", "path is null/blank", null)
+                            return@setMethodCallHandler
+                        }
+                        val apkFile = File(path)
+                        if (!apkFile.exists()) {
+                            result.error("FILE_NOT_FOUND", "apk not found: $path", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            // Android 8.0+ 需要「安装未知应用」授权，未授权时跳设置页并告知 Dart 侧
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                                !packageManager.canRequestPackageInstalls()
+                            ) {
+                                val settingsIntent = Intent(
+                                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                    Uri.parse("package:$packageName")
+                                )
+                                settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(settingsIntent)
+                                result.success("need_permission")
+                                return@setMethodCallHandler
+                            }
+                            // Android 7.0+ 禁止 file:// URI，必须走 FileProvider
+                            val apkUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apkFile)
+                            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            startActivity(installIntent)
+                            result.success("ok")
+                        } catch (e: Exception) {
+                            result.error("INSTALL_FAILED", e.message, null)
                         }
                     }
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 与 Dart 侧 getTemporaryDirectory() 对应：/data/user/0/<pkg>/cache -->
+    <cache-path name="cache" path="."/>
+    <!-- 部分机型/场景临时目录落在外部缓存目录 -->
+    <external-cache-path name="external_cache" path="."/>
+</paths>
