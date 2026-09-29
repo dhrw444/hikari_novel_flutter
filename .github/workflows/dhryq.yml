@@ -71,6 +71,8 @@ jobs:
           # 默认按触发时的旧 sha 取码会构建到旧版本，必须显式取最新 main
           ref: main
           fetch-tags: "true"
+          # 生成更新说明需要完整历史与全部 tag（默认浅克隆只有 1 个 commit）
+          fetch-depth: 0
 
       - name: Setup Git bot identity
         run: |
@@ -132,6 +134,14 @@ jobs:
           name: build-apk-output
           path: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
 
+      - name: Generate changelog (自动汇总本次更新内容)
+        id: changelog
+        env:
+          NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
+        run: |
+          # 自动按版本序推算上一版本 tag，汇总两者之间的提交并分类成中文说明
+          python3 .github/scripts/gen_release_body.py "$NEW_TAG" "$GITHUB_REPOSITORY" /tmp/release_body.md
+
       - name: Check release exists / whether APK asset is missing
         id: check_tag
         env:
@@ -173,6 +183,16 @@ jobs:
         run: |
           gh release upload "$NEW_TAG" "build/app/outputs/flutter-apk/hikari_novel_${NEW_TAG}.apk" --clobber --repo "$GITHUB_REPOSITORY"
           echo "✅已向已存在的 Release $NEW_TAG 补传 APK 附件"
+          # 顺手补上本次更新说明：原本为空则直接写入，原本有手写内容则保留并追加
+          OLD_BODY=$(gh release view "$NEW_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body // ""' || true)
+          if [ -z "$OLD_BODY" ]; then
+            gh release edit "$NEW_TAG" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/release_body.md
+            echo "✅已写入自动生成的更新说明"
+          else
+            { printf '%s\n\n' "$OLD_BODY"; cat /tmp/release_body.md; } > /tmp/release_body_merged.md
+            gh release edit "$NEW_TAG" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/release_body_merged.md
+            echo "✅原有说明已保留，并追加自动生成的更新说明"
+          fi
 
       - name: Publish Release (with APK)
         if: steps.check_tag.outputs.EXISTS == 'false'
@@ -182,4 +202,5 @@ jobs:
           tag_name: ${{ steps.get_version.outputs.NEW_TAG }}
           target_commitish: ${{ steps.checkout.outputs.commit }}
           files: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
-          generate_release_notes: true
+          # 用 CI 自动生成的本次更新说明，替换掉只有 Full Changelog 链接的默认内容
+          body_path: /tmp/release_body.md
