@@ -84,6 +84,7 @@ class ChapterDownloaderService extends GetxService {
         CharsetType.gbk => "gbk",
         CharsetType.big5Hkscs => "big5",
       };
+      //同 ApiService.get：charset 字面量会命中 CF WAF，规避在中继 Worker 侧完成，App 不改参数。
       final url = "${ApiService.instance.wenku8Node.node}/modules/article/reader.php?aid=$aid&cid=$cid&charset=$charset";
 
       Log.d("$url ${ApiService.instance.charsetType.name}");
