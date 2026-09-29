@@ -25,20 +25,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch upstream代码与标签
+      - name: Fetch upstream代码（只取代码，不搬运上游 tag，避免同名 tag 冲突破坏 CI）
         run: |
           git remote add upstream https://github.com/15dd/hikari_novel_flutter.git || true
-          git fetch upstream --tags
+          git fetch upstream main
 
       - name: Merge上游main，遇到冲突直接失败退出
         run: |
           git merge --no-edit upstream/main
           git status
 
-      - name: 无冲突则推送代码与标签
+      - name: 无冲突则推送代码
         run: |
           git push origin main
-          git push origin --tags
 
   build:
     name: 编译 Release APK（Flutter beta + Java 21）
@@ -113,25 +112,37 @@ jobs:
           name: build-apk-output
           path: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
 
-      - name: Check remote tag exists
+      - name: Check release exists
         id: check_tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
+        run: |
+          echo "检查 Release: $NEW_TAG"
+          if gh release view "$NEW_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+            echo "⚠️Release $NEW_TAG 已存在，跳过发布（避免重复覆盖）"
+          else
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+            echo "✅Release $NEW_TAG 不存在，准备创建"
+          fi
+
+      - name: Force tag to this build commit
+        if: steps.check_tag.outputs.EXISTS == 'false'
         env:
           NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
         run: |
-          echo "检查标签: $NEW_TAG"
-          if git ls-remote --tags origin | grep "/tags/${NEW_TAG}$"; then
-            echo "EXISTS=true" >> $GITHUB_OUTPUT
-            echo "⚠️标签 $NEW_TAG 已存在，跳过发布release"
-          else
-            echo "EXISTS=false" >> $GITHUB_OUTPUT
-            echo "✅标签 $NEW_TAG 不存在，准备创建Release"
-          fi
+          # 同名 tag 可能由上游同步遗留且指向旧 commit，强制指向本次构建的 commit，
+          # 保证「tag 指向的源码」与「APK 内源码」一致，避免发布溯源错位。
+          git tag -f "$NEW_TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$NEW_TAG"
 
-      - name: Create Tag & Publish Release (with APK)
+      - name: Publish Release (with APK)
         if: steps.check_tag.outputs.EXISTS == 'false'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ steps.get_version.outputs.NEW_TAG }}
+          target_commitish: ${{ github.sha }}
           files: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
           generate_release_notes: true
