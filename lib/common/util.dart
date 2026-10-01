@@ -57,6 +57,17 @@ class Util {
     return version.trim().replaceFirst(RegExp(r"^[vV]"), "").split("+").first.trim();
   }
 
+  /// 解析 build number（"+" 之后那段，即 Android 的 versionCode）。
+  /// 兼容两种入参：
+  ///   "v0.5.0-beta.2+15" -> 15   （CI 的 tag / release tag_name）
+  ///   "15"               -> 15   （PackageInfo.buildNumber 本身就是纯数字）
+  /// 无法解析时返回 0。
+  static int parseBuildNumber(String version) {
+    final raw = version.trim().replaceFirst(RegExp(r"^[vV]"), "");
+    final tail = raw.contains("+") ? raw.split("+").last : raw;
+    return int.tryParse(tail.trim()) ?? 0;
+  }
+
   /// 检查更新。
   /// [mustNotification] 为 true 表示用户手动检查，此时即使没有新版本也会给出提示；
   /// 为 false 表示启动时的自动检查，只在确实存在新版本时才弹窗。
@@ -69,11 +80,19 @@ class Util {
       }
 
       final data = response.data;
-      final String remoteTag = (data["tag_name"] ?? "").toString(); // e.g. "v0.5.0-beta.2+14"
-      final String remoteVer = normalizeVersion(remoteTag);
-      final String localVer = normalizeVersion((await PackageInfo.fromPlatform()).version); // e.g. "0.5.0-beta.1+13"
+      final String remoteTag = (data["tag_name"] ?? "").toString(); // e.g. "v0.5.0-beta.2+15"
+      final String remoteVer = normalizeVersion(remoteTag); // "0.5.0-beta.2"
+      final int remoteBuild = parseBuildNumber(remoteTag); // 15
 
-      final bool hasNewVersion = remoteVer.isNotEmpty && localVer != remoteVer;
+      // 注意：Flutter 的 PackageInfo.version 只含 "+" 之前的版本名（如 "0.5.0-beta.2"），
+      // build number（如 "15"）单独放在 buildNumber 字段里，必须分开取。
+      final packageInfo = await PackageInfo.fromPlatform();
+      final String localVer = normalizeVersion(packageInfo.version);
+      final int localBuild = parseBuildNumber(packageInfo.buildNumber);
+
+      // 版本名不同 → 有新版；版本名相同则再比 build number。
+      // 只比版本名会导致「仅 bump +N 的版本永远检测不到更新」。
+      final bool hasNewVersion = remoteVer.isNotEmpty && (remoteVer != localVer || remoteBuild > localBuild);
 
       //不需要通知且没有新版本，直接返回
       if (!mustNotification && !hasNewVersion) return;
