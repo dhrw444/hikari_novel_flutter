@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: "0 2 * * *"   # 每天 02:00 UTC（北京 10:00）巡检一次上游 15dd；无常驻构建，无更新则整条流水线不构建
+    - cron: "0 2,14 * * *"   # 每天两次（02:00 / 14:00 UTC，即北京 10:00 / 22:00）巡检上游 15dd；无常驻构建，无更新则整条流水线不构建
 
 permissions:
   contents: write
@@ -56,7 +56,7 @@ jobs:
     name: 编译 Release APK（Flutter beta + Java 21）
     needs: sync-upstream   # sync任务失败，build完全不运行
     # push（我自己改代码）/ workflow_dispatch（手动）一律构建；
-    # schedule（每小时巡检）只有上游真有新提交时才构建，没更新绝不空跑
+    # schedule（定时巡检，每 12 小时一次）只有上游真有新提交时才构建，没更新绝不空跑
     if: github.event_name != 'schedule' || needs.sync-upstream.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
