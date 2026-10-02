@@ -51,17 +51,13 @@ class Util {
   /// 已下载 APK 对应的文件名，防止缓存与新版本错配（例如下载后未安装，release 又更新了）
   static String? _pendingApkName;
 
-  /// 归一化版本号：去掉可选的 v/V 前缀和 +build 后缀。
-  /// 例 "v0.5.0-beta.1+13" -> "0.5.0-beta.1"，这样 CI 的 tag 带不带 v 都能正确比较
+  /// 归一化版本号：去掉可选的 v/V 前缀与 +build 后缀（"v0.5.0-beta.1+13" -> "0.5.0-beta.1"）
   static String normalizeVersion(String version) {
     return version.trim().replaceFirst(RegExp(r"^[vV]"), "").split("+").first.trim();
   }
 
-  /// 解析 build number（"+" 之后那段，即 Android 的 versionCode）。
-  /// 兼容两种入参：
-  ///   "v0.5.0-beta.2+15" -> 15   （CI 的 tag / release tag_name）
-  ///   "15"               -> 15   （PackageInfo.buildNumber 本身就是纯数字）
-  /// 无法解析时返回 0。
+  /// 解析 build number（"+" 之后那段，即 versionCode），
+  /// 兼容 "v0.5.0-beta.2+15" 与纯数字 "15" 两种入参，解析失败返回 0
   static int parseBuildNumber(String version) {
     final raw = version.trim().replaceFirst(RegExp(r"^[vV]"), "");
     final tail = raw.contains("+") ? raw.split("+").last : raw;
@@ -84,14 +80,12 @@ class Util {
       final String remoteVer = normalizeVersion(remoteTag); // "0.5.0-beta.2"
       final int remoteBuild = parseBuildNumber(remoteTag); // 15
 
-      // 注意：Flutter 的 PackageInfo.version 只含 "+" 之前的版本名（如 "0.5.0-beta.2"），
-      // build number（如 "15"）单独放在 buildNumber 字段里，必须分开取。
+      //PackageInfo 的版本名与 build number 分属两个字段，需分开取
       final packageInfo = await PackageInfo.fromPlatform();
       final String localVer = normalizeVersion(packageInfo.version);
       final int localBuild = parseBuildNumber(packageInfo.buildNumber);
 
-      // 版本名不同 → 有新版；版本名相同则再比 build number。
-      // 只比版本名会导致「仅 bump +N 的版本永远检测不到更新」。
+      //版本名不同即有新版；版本名相同再比 build number（仅 bump +N 也算新版）
       final bool hasNewVersion = remoteVer.isNotEmpty && (remoteVer != localVer || remoteBuild > localBuild);
 
       //不需要通知且没有新版本，直接返回
@@ -215,7 +209,7 @@ class Util {
     );
 
     try {
-      // 用独立 Dio：ApiClient 内的 dio 是 followRedirects:false + Cloudflare 拦截器，不适用于 GitHub 附件下载
+      //独立 Dio：ApiClient 的 dio 是 followRedirects:false + CF 拦截器，不能用于 GitHub 附件下载
       final dio = Dio(
         BaseOptions(
           headers: kUserAgent,
@@ -247,20 +241,19 @@ class Util {
     }
   }
 
-  /// 唤起系统安装器安装指定路径的 APK。
-  /// 返回 true 表示本地安装包不可用（已被清理/路径非法），上层需要重新下载；
-  /// 返回 false 表示已成功唤起安装器，或已向用户给出授权/失败提示。
+  /// 唤起系统安装器安装 APK：返回 true 表示安装包不可用、上层需重新下载，
+  /// 返回 false 表示已成功唤起安装器，或已给出授权/失败提示
   static Future<bool> _installApk(String path) async {
     try {
       final result = await _intentChannel.invokeMethod("installApk", {"path": path});
       if (result == "need_permission") {
-        // 原生侧已跳转「安装未知应用」设置页，APK 保留在缓存目录，用户授权后重试即可
+        //原生侧已跳转「安装未知应用」设置页，授权后重试即可
         _showSimpleDialog("install_failed".tr, "install_unknown_source_tip".tr);
         return false;
       }
       return false;
     } on PlatformException catch (e) {
-      // FILE_NOT_FOUND：缓存里的安装包已被系统清理，返回 true 让上层重新下载
+      //FILE_NOT_FOUND：安装包已被系统清理，返回 true 让上层重新下载
       if (e.code == "FILE_NOT_FOUND") return true;
       Log.e("installApk failed: ${e.code} ${e.message}");
       _showSimpleDialog("install_failed".tr, e.message ?? e.code);

@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: "0 2,14 * * *"   # 每天两次（02:00 / 14:00 UTC，即北京 10:00 / 22:00）巡检上游 15dd；无常驻构建，无更新则整条流水线不构建
+    - cron: "0 2,14 * * *"   # 每 12 小时巡检上游 15dd（02:00 / 14:00 UTC，即北京 10:00 / 22:00）
 
 permissions:
   contents: write
@@ -56,7 +56,7 @@ jobs:
     name: 编译 Release APK（Flutter beta + Java 21）
     needs: sync-upstream   # sync任务失败，build完全不运行
     # push（我自己改代码）/ workflow_dispatch（手动）一律构建；
-    # schedule（定时巡检，每 12 小时一次）只有上游真有新提交时才构建，没更新绝不空跑
+    # schedule（每 12 小时）仅上游有新提交时才构建，无更新不空跑
     if: github.event_name != 'schedule' || needs.sync-upstream.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -71,7 +71,7 @@ jobs:
           # 默认按触发时的旧 sha 取码会构建到旧版本，必须显式取最新 main
           ref: main
           fetch-tags: "true"
-          # 生成更新说明需要完整历史与全部 tag（默认浅克隆只有 1 个 commit）
+          # 生成更新说明需完整历史与全部 tag（浅克隆仅 1 个 commit）
           fetch-depth: 0
 
       - name: Setup Git bot identity
@@ -139,7 +139,7 @@ jobs:
         env:
           NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
         run: |
-          # 自动按版本序推算上一版本 tag，汇总两者之间的提交并分类成中文说明
+          # 按版本序推算上一版本 tag，汇总其间提交并分类成中文说明
           python3 .github/scripts/gen_release_body.py "$NEW_TAG" "$GITHUB_REPOSITORY" /tmp/release_body.md
 
       - name: Check release exists / whether APK asset is missing
@@ -171,7 +171,7 @@ jobs:
         env:
           NEW_TAG: ${{ steps.get_version.outputs.NEW_TAG }}
         run: |
-          # 指向本次真正构建的 commit（已 checkout main），保证 tag 与 APK 源码一致
+          # 指向本次构建的 commit，保证 tag 与 APK 源码一致
           git tag -f "$NEW_TAG" "$(git rev-parse HEAD)"
           git push -f origin "refs/tags/$NEW_TAG"
 
@@ -183,7 +183,7 @@ jobs:
         run: |
           gh release upload "$NEW_TAG" "build/app/outputs/flutter-apk/hikari_novel_${NEW_TAG}.apk" --clobber --repo "$GITHUB_REPOSITORY"
           echo "✅已向已存在的 Release $NEW_TAG 补传 APK 附件"
-          # 顺手补上本次更新说明：原本为空则直接写入，原本有手写内容则保留并追加
+          # 补本次更新说明：原为空则写入，原有手写内容则保留并追加
           OLD_BODY=$(gh release view "$NEW_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body // ""' || true)
           if [ -z "$OLD_BODY" ]; then
             gh release edit "$NEW_TAG" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/release_body.md
@@ -202,5 +202,5 @@ jobs:
           tag_name: ${{ steps.get_version.outputs.NEW_TAG }}
           target_commitish: ${{ steps.checkout.outputs.commit }}
           files: build/app/outputs/flutter-apk/hikari_novel_${{ steps.get_version.outputs.NEW_TAG }}.apk
-          # 用 CI 自动生成的本次更新说明，替换掉只有 Full Changelog 链接的默认内容
+          # 用 CI 生成的更新说明替换只有 Full Changelog 的默认内容
           body_path: /tmp/release_body.md

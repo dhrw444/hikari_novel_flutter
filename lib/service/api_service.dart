@@ -279,8 +279,7 @@ class _ApiClient {
         ..interceptors.add(_CloudflareInterceptor())
         ..interceptors.add(CookieManager(_cookieJar));
 
-  /// 把本地保存的 cookie 注入 CookieJar，覆盖全部节点（含代理节点），
-  /// 否则切换节点后请求不会携带登录凭据。
+  /// 把本地 cookie 注入 CookieJar（覆盖全部节点），否则切换节点后请求不带登录凭据
   void initCookie() {
     final localCookie = LocalStorageService.instance.getCookie();
     if (localCookie == null) return;
@@ -308,8 +307,7 @@ class _ApiClient {
 
   Future<Resource> get(String url, {required CharsetType charsetType}) async {
     try {
-      //charset 是上游接口的必需参数，但其字面量会命中 CF WAF 特征；
-      //中继 Worker 已在回源时对 query 参数名做打散规避（见 hikari-relay worker 头部说明），此处保持原样。
+      //charset 是上游必需参数，其字面量会命中 CF WAF，规避由中继 Worker 回源时处理，此处保持原样
       if (!url.contains("?")) url += "?";
       switch (charsetType) {
         case CharsetType.gbk:
@@ -341,7 +339,7 @@ class _ApiClient {
     if (response.statusCode != null && response.statusCode! >= 300 && response.statusCode! < 400) {
       final location = response.headers.value('location');
       if (location != null) {
-        //Dio 的 TLS 指纹会触发 CF 盾，绝不跟随跳转到 login.php 的重定向，直接视为登录态失效
+        //Dio 的 TLS 指纹会触发 CF 盾，login.php 的跳转一律视为登录态失效
         if (location.contains('login.php')) {
           throw DioException(
             requestOptions: response.requestOptions,

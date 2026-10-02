@@ -7,15 +7,9 @@ const String kLatestUrl = "https://api.github.com/repos/dhrw444/hikari_novel_flu
 
 const String kReleasesPageUrl = "https://github.com/dhrw444/hikari_novel_flutter/releases/latest"; //release 页面，浏览器下载兜底
 
-/// 全局请求头。
-/// 注意：UA 与「客户端提示 / 导航特征头」必须成套自洽，否则 Cloudflare
-/// Browser Integrity Check 会把请求判定为伪造爬虫，直接返回 403 + "Just a moment"。
-/// 实测（只有 UA 单头时）：
-///   现代浏览器 UA 单头                                  -> 403
-///   +sec-ch-ua / +Accept / +Accept-Language / +upgrade-insecure-requests -> 仍 403
-///   +sec-fetch-dest:document（即补齐 sec-fetch-* 系列）  -> 302/200 正常
-/// 图片域 img.wenku8.com 不设防，共用本份头无影响。
-/// 不要手写 Accept-Encoding / Host / Referer（Dart HttpClient 自动处理，手写反而更假）。
+/// 全局请求头：UA 与浏览器特征头（sec-ch-ua / sec-fetch-*）需成套出现，
+/// 只有 UA 单头会被 Cloudflare 判定为爬虫，直连节点返回 403 + "Just a moment"。
+/// 不要手写 Accept-Encoding / Host / Referer，Dart HttpClient 会自动处理。
 const Map<String, String> kUserAgent = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",

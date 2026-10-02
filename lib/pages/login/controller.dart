@@ -37,8 +37,7 @@ class LoginController extends GetxController {
     cookieManager.deleteAllCookies();
   }
 
-  /// WebView 跳转回调：页面加载完成后尝试提取 cookie 并落盘。
-  /// 只在当前节点（官方域名或代理节点）下生效，cookie 缺失或校验失败时不写入。
+  /// WebView 加载完成回调：提取 cookie 并落盘；仅当前节点域名生效，cookie 缺失或不合法时不写入
   Future<void> saveCookie(WebUri uri) async {
     showLoading.value = false;
 
@@ -46,7 +45,7 @@ class LoginController extends GetxController {
     final nodeHost = Uri.parse(ApiService.instance.wenku8Node.node).host;
     if (uri.host != nodeHost) return;
 
-    //优先从 WebView 内部用 JS 读 document.cookie（比 CookieManager API 更可靠），失败再回退 CookieManager
+    //优先用 JS 读 WebView 内 document.cookie，失败再回退 CookieManager
     final cookieMap = await _readCookies(uri);
     if (cookieMap == null) return;
 
@@ -62,8 +61,8 @@ class LoginController extends GetxController {
     await _onLoginSuccess(cookie);
   }
 
-  /// 读取当前页面的 cookie：优先取 WebView 内 document.cookie（代理节点下更可靠），
-  /// 失败再回退 CookieManager。返回 name→value 映射，两处都拿不到时返回 null。
+  /// 读取 cookie：优先 JS 读 document.cookie，失败回退 CookieManager；
+  /// 返回 name→value 映射，两处都拿不到时返回 null
   Future<Map<String, String>?> _readCookies(WebUri uri) async {
     final controller = inAppWebViewController;
     if (controller != null) {
