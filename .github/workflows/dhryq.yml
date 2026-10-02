@@ -5,12 +5,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"   # 每小时巡检一次上游 15dd；无常驻构建，无更新则整条流水线不构建
+    - cron: "0 2 * * *"   # 每天 02:00 UTC（北京 10:00）巡检一次上游 15dd；无常驻构建，无更新则整条流水线不构建
 
 permissions:
   contents: write
 
-# 同一时间只允许一条流水线：避免每小时巡检与 push 同时跑导致 git push 竞态
+# 同一时间只允许一条流水线：避免定时巡检与 push 同时跑导致 git push 竞态
 concurrency:
   group: dhryq-main
   cancel-in-progress: false
