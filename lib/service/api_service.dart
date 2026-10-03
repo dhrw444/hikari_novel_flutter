@@ -351,7 +351,7 @@ class _ApiClient {
         final node = LocalStorageService.instance.getWenku8Node();
         final redirectUrl = location.startsWith('http') ? location : "${node.node}/${location.startsWith('/') ? location.substring(1) : location}";
         final redirectedResponse = await dio.get(redirectUrl);
-        //递归处理：二次跳转或跳转后触发 CF 盾都要走同一套检测
+        //递归跟随，二次跳转或 CF 盾都走同一套检测
         return await _checkRedirects(redirectedResponse);
       }
     }
@@ -365,7 +365,7 @@ class _ApiClient {
         data: data,
         options: Options(contentType: Headers.formUrlEncodedContentType),
       );
-      //与 get 一样手动处理 3xx：成功后的跳转要继续跟随，login.php 跳转要报会话失效
+      //手动处理 3xx：跟随成功跳转，login.php 跳转报会话失效
       final raw = await _checkRedirects(response) as Uint8List;
       String decodedHtml;
       switch (charsetType) {

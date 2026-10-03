@@ -27,11 +27,8 @@ class LoginController extends GetxController {
   final GlobalKey webViewKey = GlobalKey();
   final InAppWebViewSettings settings = InAppWebViewSettings(isInspectable: kDebugMode, userAgent: kUserAgent["User-Agent"], javaScriptEnabled: true);
 
-  /// 桌面指纹伪装脚本。UA 头已是桌面 Edge，但 Android WebView 无法改 Sec-CH-UA 请求头
-  /// （flutter_inappwebview 无此 API），仍上报 Android WebView / ?1 / Android；
-  /// CF 挑战脚本还会读 navigator.userAgentData / platform / maxTouchPoints 做交叉校验，
-  /// 发现 UA=Windows 而环境=Android 的矛盾即判定为机器人，表现为点登录后「有时被拦截」。
-  /// 此处把 JS 可读的指纹统一改成桌面 Windows，与 kUserAgent 保持一致（只改 JS 读取值，不影响渲染）。
+  /// 桌面指纹伪装：Android WebView 改不了 Sec-CH-UA 头，CF 挑战会读 navigator 指纹交叉校验，
+  /// 此处把 JS 可读指纹统一成 Windows 桌面与 kUserAgent 一致，避免被判定机器人而拦截登录。
   static const String _desktopFingerprintScript = """
 (function() {
   var brands = [
@@ -134,9 +131,8 @@ class LoginController extends GetxController {
     }
   }
 
-  /// 读取 cookie：CookieManager 优先——cf_clearance 是 HttpOnly，
-  /// document.cookie 物理上读不到它，JS 只能作为回退/补充；
-  /// 两路结果合并（CookieManager 优先），都拿不到时返回 null
+  /// 读取 cookie：CookieManager 优先（cf_clearance 是 HttpOnly，document.cookie 读不到），
+  /// JS 结果作补充，两路合并都为空时返回 null
   Future<Map<String, String>?> _readCookies(WebUri uri) async {
     final map = <String, String>{};
 
