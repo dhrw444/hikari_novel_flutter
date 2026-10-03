@@ -58,6 +58,7 @@ class LoginPage extends StatelessWidget {
                           webViewEnvironment: webViewEnvironment,
                           initialUrlRequest: URLRequest(url: WebUri(controller.url)),
                           initialSettings: controller.settings,
+                          initialUserScripts: controller.initialUserScripts,
                           onWebViewCreated: (webController) {
                             controller.inAppWebViewController = webController;
                           },
