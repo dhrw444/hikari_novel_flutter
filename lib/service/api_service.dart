@@ -334,10 +334,20 @@ class _ApiClient {
     }
   }
 
+  /// 手动处理 3xx：login.php 跳转视为登录态失效直接抛出，
+  /// 其余跳转按当前节点补全 location 后再请求（followRedirects 已关闭）。
   Future<dynamic> _checkRedirects(Response response) async {
     if (response.statusCode != null && response.statusCode! >= 300 && response.statusCode! < 400) {
       final location = response.headers.value('location');
       if (location != null) {
+        //Dio 的 TLS 指纹会触发 CF 盾，login.php 的跳转一律视为登录态失效
+        if (location.contains('login.php')) {
+          throw DioException(
+            requestOptions: response.requestOptions,
+            message: 'Session expired, please re-login',
+          );
+        }
+        //location 可能是绝对 URL 也可能是相对路径，相对路径时拼接到当前节点
         final node = LocalStorageService.instance.getWenku8Node();
         final redirectUrl = location.startsWith('http') ? location : "${node.node}/${location.startsWith('/') ? location.substring(1) : location}";
         final redirectedResponse = await dio.get(redirectUrl);
