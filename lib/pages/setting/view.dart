@@ -91,15 +91,7 @@ class SettingPage extends StatelessWidget {
               title: "node".tr,
               subtitle: controller.wenku8Node.value.node,
               leading: const Icon(Icons.lan_outlined),
-              onTap: () =>
-                  showRadioListSheet(
-                    context,
-                    value: controller.wenku8Node.value,
-                    values: [(Wenku8Node.wwwWenku8Net, Wenku8Node.wwwWenku8Net.node), (Wenku8Node.wwwWenku8Cc, Wenku8Node.wwwWenku8Cc.node), (Wenku8Node.proxyWorker, Wenku8Node.proxyWorker.node)],
-                    title: "node".tr,
-                  ).then((value) async {
-                    if (value != null) controller.changeWenku8Node(value);
-                  }),
+              onTap: () => _showNodeSheet(context),
             );
           }),
           Obx(
@@ -153,5 +145,96 @@ class SettingPage extends StatelessWidget {
     );
     if (newColor == initColor) return;
     controller.changeCustomColor(newColor);
+  }
+
+  void _showNodeSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) {
+        final titleLarge = Theme.of(context).textTheme.titleLarge!;
+        final titleMedium = Theme.of(context).textTheme.titleMedium!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 0, 10),
+                child: Text("node".tr, style: titleLarge.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              Obx(() => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final n in Wenku8Node.builtins)
+                    RadioListTile<Wenku8Node>(
+                      value: n,
+                      groupValue: controller.wenku8Node.value,
+                      title: Text(n.node, style: titleMedium),
+                      onChanged: (_) {
+                        controller.changeWenku8Node(n);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  for (final url in controller.customNodes)
+                    RadioListTile<Wenku8Node>(
+                      value: Wenku8Node.custom(url),
+                      groupValue: controller.wenku8Node.value,
+                      title: Text(url, style: titleMedium),
+                      secondary: IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () => controller.removeCustomNode(url),
+                      ),
+                      onChanged: (_) {
+                        controller.changeWenku8Node(Wenku8Node.custom(url));
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                ],
+              )),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: Text("add_custom_node".tr, style: titleMedium),
+                onTap: () => _showAddNodeDialog(context),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddNodeDialog(BuildContext context) {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("add_custom_node".tr),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: "https://your-proxy.example.com",
+            labelText: "node_url".tr,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text("cancel".tr)),
+          TextButton(
+            onPressed: () {
+              final input = textController.text.trim();
+              if (input.isNotEmpty) {
+                this.controller.addCustomNode(input);
+                Navigator.of(context).pop();
+              }
+            },
+            child: Text("save".tr),
+          ),
+        ],
+      ),
+    );
   }
 }

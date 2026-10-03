@@ -123,7 +123,7 @@ Future<T?> showRadioListSheet<T>(
     showDragHandle: true,
     enableDrag: true,
     builder: (_) {
-      final titleMedium = TextTheme.of(context).titleMedium!;
+      final titleMedium = Theme.of(context).textTheme.titleMedium!;
       return SafeArea(
         child: _defaultBottomSheetColumn([
           _defaultBottomSheetTitlePadding(context, title),
@@ -161,7 +161,7 @@ Future<T?> showNormalListSheet<T>(
     showDragHandle: true,
     enableDrag: true,
     builder: (_) {
-      final titleMedium = TextTheme.of(context).titleMedium!;
+      final titleMedium = Theme.of(context).textTheme.titleMedium!;
       return SafeArea(
         child: _defaultBottomSheetColumn([
           _defaultBottomSheetTitlePadding(context, title),
@@ -186,7 +186,7 @@ Future<T?> showNormalListSheet<T>(
 }
 
 Widget _defaultBottomSheetTitlePadding(BuildContext context, String title) {
-  final titleLarge = TextTheme.of(context).titleLarge!;
+  final titleLarge = Theme.of(context).textTheme.titleLarge!;
   return Padding(
     padding: const EdgeInsets.fromLTRB(20, 10, 0, 20),
     child: Text(title, style: titleLarge.copyWith(fontWeight: FontWeight.bold)),

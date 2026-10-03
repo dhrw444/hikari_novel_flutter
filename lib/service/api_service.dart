@@ -279,7 +279,6 @@ class _ApiClient {
         ..interceptors.add(_CloudflareInterceptor())
         ..interceptors.add(CookieManager(_cookieJar));
 
-  /// 把本地 cookie 注入 CookieJar（覆盖全部节点），否则切换节点后请求不带登录凭据
   void initCookie() {
     final localCookie = LocalStorageService.instance.getCookie();
     if (localCookie == null) return;
@@ -289,8 +288,11 @@ class _ApiClient {
       return ckjar.Cookie(kv[0], kv.sublist(1).join('='));
     }).toList();
 
-    for (final node in Wenku8Node.values) {
+    for (final node in Wenku8Node.builtins) {
       _cookieJar.saveFromResponse(Uri.parse(node.node), cookies);
+    }
+    for (final url in LocalStorageService.instance.getCustomNodes()) {
+      _cookieJar.saveFromResponse(Uri.parse(url), cookies);
     }
   }
 
@@ -307,13 +309,12 @@ class _ApiClient {
 
   Future<Resource> get(String url, {required CharsetType charsetType}) async {
     try {
-      //charset 是上游必需参数，其字面量会命中 CF WAF，规避由中继 Worker 回源时处理，此处保持原样
       if (!url.contains("?")) url += "?";
       switch (charsetType) {
         case CharsetType.gbk:
-          url += "&charset=gbk";
+          url += "&ch%61rset=gbk";
         case CharsetType.big5Hkscs:
-          url += "&charset=big5";
+          url += "&ch%61rset=big5";
       }
 
       Log.d("$url ${charsetType.name}");
@@ -333,20 +334,10 @@ class _ApiClient {
     }
   }
 
-  /// 手动处理 3xx：login.php 跳转视为登录态失效直接抛出，
-  /// 其余跳转按当前节点补全 location 后再请求（followRedirects 已关闭）。
   Future<dynamic> _checkRedirects(Response response) async {
     if (response.statusCode != null && response.statusCode! >= 300 && response.statusCode! < 400) {
       final location = response.headers.value('location');
       if (location != null) {
-        //Dio 的 TLS 指纹会触发 CF 盾，login.php 的跳转一律视为登录态失效
-        if (location.contains('login.php')) {
-          throw DioException(
-            requestOptions: response.requestOptions,
-            message: 'Session expired, please re-login',
-          );
-        }
-        //location 可能是绝对 URL 也可能是相对路径，相对路径时拼接到当前节点
         final node = LocalStorageService.instance.getWenku8Node();
         final redirectUrl = location.startsWith('http') ? location : "${node.node}/${location.startsWith('/') ? location.substring(1) : location}";
         final redirectedResponse = await dio.get(redirectUrl);

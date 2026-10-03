@@ -10,6 +10,7 @@ class SettingController extends GetxController {
   Rx<Language> language = Rx(LocalStorageService.instance.getLanguage());
   RxBool isRelativeTime = LocalStorageService.instance.getIsRelativeTime().obs;
   Rx<Wenku8Node> wenku8Node = Rx(LocalStorageService.instance.getWenku8Node());
+  RxList<String> customNodes = LocalStorageService.instance.getCustomNodes().obs;
   Rx<ThemeMode> themeMode = Rx(LocalStorageService.instance.getThemeMode());
   RxBool isDynamicColor = LocalStorageService.instance.getIsDynamicColor().obs;
   Rx<Color> customColor = Rx(LocalStorageService.instance.getCustomColor());
@@ -46,6 +47,21 @@ class SettingController extends GetxController {
   void changeWenku8Node(Wenku8Node n) {
     wenku8Node.value = n;
     LocalStorageService.instance.setWenku8Node(n);
+  }
+
+  void addCustomNode(String url) {
+    final node = Wenku8Node.custom(url);
+    LocalStorageService.instance.addCustomNode(node.url);
+    customNodes.value = LocalStorageService.instance.getCustomNodes();
+    changeWenku8Node(node);
+  }
+
+  void removeCustomNode(String url) {
+    LocalStorageService.instance.removeCustomNode(url);
+    customNodes.value = LocalStorageService.instance.getCustomNodes();
+    if (wenku8Node.value.url == url) {
+      changeWenku8Node(Wenku8Node.wwwWenku8Cc);
+    }
   }
 
   void changeCustomColor(Color color) {

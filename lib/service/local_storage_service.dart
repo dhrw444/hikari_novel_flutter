@@ -59,7 +59,8 @@ class LocalStorageService extends GetxService {
       kReaderTtsVolume = "readerTtsVolume",
       kReaderParaIndent = "readerParaIndent",
       kReaderParaSpacing = "readerParaSpacing",
-      kReaderBottomStatusBarHorizontalSpacing = "readerBottomStatusBarHorizontalSpacing";
+      kReaderBottomStatusBarHorizontalSpacing = "readerBottomStatusBarHorizontalSpacing",
+      kCustomNodes = "customNodes";
 
   Future<void> init() async {
     final Directory dir = await getApplicationSupportDirectory();
@@ -103,9 +104,42 @@ class LocalStorageService extends GetxService {
 
   Language getLanguage() => Language.values[_setting.get(kLanguage, defaultValue: Language.followSystem.index)];
 
-  void setWenku8Node(Wenku8Node value) => _setting.put(kWenku8Node, value.index);
+  void setWenku8Node(Wenku8Node value) => _setting.put(kWenku8Node, value.url);
 
-  Wenku8Node getWenku8Node() => Wenku8Node.values[_setting.get(kWenku8Node, defaultValue: Wenku8Node.wwwWenku8Cc.index)];
+  Wenku8Node getWenku8Node() {
+    final stored = _setting.get(kWenku8Node);
+    if (stored is String) {
+      for (final n in Wenku8Node.builtins) {
+        if (n.url == stored) return n;
+      }
+      return Wenku8Node.custom(stored);
+    }
+    if (stored is int) {
+      if (stored == 0) return Wenku8Node.wwwWenku8Net;
+      if (stored == 2) return Wenku8Node.custom("https://dhr.kdns.fr");
+      return Wenku8Node.wwwWenku8Cc;
+    }
+    return Wenku8Node.wwwWenku8Cc;
+  }
+
+  List<String> getCustomNodes() {
+    final raw = _setting.get(kCustomNodes, defaultValue: <String>[]);
+    return List<String>.from(raw as List);
+  }
+
+  void addCustomNode(String url) {
+    final nodes = getCustomNodes();
+    if (!nodes.contains(url)) {
+      nodes.add(url);
+      _setting.put(kCustomNodes, nodes);
+    }
+  }
+
+  void removeCustomNode(String url) {
+    final nodes = getCustomNodes();
+    nodes.remove(url);
+    _setting.put(kCustomNodes, nodes);
+  }
 
   ReaderDirection getReaderDirection() => ReaderDirection.values[_reader.get(kReaderDirection, defaultValue: ReaderDirection.upToDown.index)];
 

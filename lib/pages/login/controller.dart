@@ -37,75 +37,44 @@ class LoginController extends GetxController {
     cookieManager.deleteAllCookies();
   }
 
-  /// WebView 加载完成回调：提取 cookie 并落盘；仅当前节点域名生效，cookie 缺失或不合法时不写入
   Future<void> saveCookie(WebUri uri) async {
     showLoading.value = false;
 
-    //按当前节点的 host 匹配，兼容官方域名与任意代理域名
     final nodeHost = Uri.parse(ApiService.instance.wenku8Node.node).host;
-    if (uri.host != nodeHost) return;
+    if (uri.toString().contains("wenku8") || uri.host == nodeHost) {
+      final getCookie = await cookieManager.getCookies(url: uri);
 
-    //优先用 JS 读 WebView 内 document.cookie，失败再回退 CookieManager
-    final cookieMap = await _readCookies(uri);
-    if (cookieMap == null) return;
+      bool hasCookie = ["jieqiUserInfo", "jieqiVisitInfo"].every(
+        (keyword) => getCookie.any((cookieItem) => cookieItem.name.contains(keyword)),
+      );
+      if (hasCookie) {
+        String cookie = "jieqiUserInfo=${getCookie.firstWhere((cookieItem) => cookieItem.name == "jieqiUserInfo").value};";
+        cookie += "jieqiVisitInfo=${getCookie.firstWhere((cookieItem) => cookieItem.name == "jieqiVisitInfo").value}";
+        LocalStorageService.instance.setCookie(cookie);
+        ApiService.instance.initCookie();
 
-    if (!cookieMap.containsKey("jieqiUserInfo") || !cookieMap.containsKey("jieqiVisitInfo")) return;
+        try {
+          await _getUserInfo();
+          await _refreshBookshelf();
+        } catch (e) {
+          LocalStorageService.instance.setCookie(null); //清空cookie
+          ApiService.instance.deleteCookie();
 
-    String cookie = "jieqiUserInfo=${cookieMap['jieqiUserInfo']};";
-    cookie += "jieqiVisitInfo=${cookieMap['jieqiVisitInfo']}";
-    //cf_clearance 一并保存，API 请求时可复用 WebView 已通过 CF 盾的凭据
-    final cfClearance = cookieMap['cf_clearance'];
-    if (cfClearance != null && cfClearance.isNotEmpty) {
-      cookie += ";cf_clearance=$cfClearance";
-    }
-    await _onLoginSuccess(cookie);
-  }
+          final controller = inAppWebViewController;
+          if (controller != null) {
+            inAppWebViewController = null;
+            controller.dispose(); //销毁webview，停止加载网页
+          }
 
-  /// 读取 cookie：优先 JS 读 document.cookie，失败回退 CookieManager；
-  /// 返回 name→value 映射，两处都拿不到时返回 null
-  Future<Map<String, String>?> _readCookies(WebUri uri) async {
-    final controller = inAppWebViewController;
-    if (controller != null) {
-      try {
-        final raw = (await controller.evaluateJavascript(source: "document.cookie"))?.toString() ?? "";
-        final map = <String, String>{};
-        for (final part in raw.split(';')) {
-          final trimmed = part.trim();
-          final eq = trimmed.indexOf('=');
-          if (eq > 0) map[trimmed.substring(0, eq)] = trimmed.substring(eq + 1);
+          errorMsg = e.toString();
+          pageState.value = PageState.error;
+
+          return;
         }
-        if (map.isNotEmpty) return map;
-      } catch (_) {}
-    }
-    final cookies = await cookieManager.getCookies(url: uri);
-    if (cookies.isEmpty) return null;
-    return {for (final c in cookies) c.name: c.value};
-  }
 
-  Future<void> _onLoginSuccess(String cookie) async {
-    LocalStorageService.instance.setCookie(cookie);
-    ApiService.instance.initCookie();
-
-    try {
-      await _getUserInfo();
-      await _refreshBookshelf();
-    } catch (e) {
-      LocalStorageService.instance.setCookie(null); //清空cookie
-      ApiService.instance.deleteCookie();
-
-      final controller = inAppWebViewController;
-      if (controller != null) {
-        inAppWebViewController = null;
-        controller.dispose(); //销毁webview，停止加载网页
+        Get.offAllNamed(RoutePath.main);
       }
-
-      errorMsg = e.toString();
-      pageState.value = PageState.error;
-
-      return;
     }
-
-    Get.offAllNamed(RoutePath.main);
   }
 
   Future<void> _getUserInfo() async {
