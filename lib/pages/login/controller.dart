@@ -61,25 +61,32 @@ class LoginController extends GetxController {
     }
   }
 
-  /// 读取 cookie：优先 JS 读 document.cookie，失败回退 CookieManager；
-  /// 返回 name→value 映射，两处都拿不到时返回 null
+  /// 读取 cookie：CookieManager 优先——cf_clearance 是 HttpOnly，
+  /// document.cookie 物理上读不到它，JS 只能作为回退/补充；
+  /// 两路结果合并（CookieManager 优先），都拿不到时返回 null
   Future<Map<String, String>?> _readCookies(WebUri uri) async {
+    final map = <String, String>{};
+
+    // CookieManager 读原生 cookie 库，含 HttpOnly 的 cf_clearance
+    final cookies = await cookieManager.getCookies(url: uri);
+    for (final c in cookies) {
+      if (c.name.isNotEmpty) map[c.name] = c.value;
+    }
+
+    // JS 回退/补充（只能拿到非 HttpOnly cookie）
     final controller = inAppWebViewController;
     if (controller != null) {
       try {
         final raw = (await controller.evaluateJavascript(source: "document.cookie"))?.toString() ?? "";
-        final map = <String, String>{};
         for (final part in raw.split(';')) {
           final trimmed = part.trim();
           final eq = trimmed.indexOf('=');
-          if (eq > 0) map[trimmed.substring(0, eq)] = trimmed.substring(eq + 1);
+          if (eq > 0) map.putIfAbsent(trimmed.substring(0, eq), () => trimmed.substring(eq + 1));
         }
-        if (map.isNotEmpty) return map;
       } catch (_) {}
     }
-    final cookies = await cookieManager.getCookies(url: uri);
-    if (cookies.isEmpty) return null;
-    return {for (final c in cookies) c.name: c.value};
+
+    return map.isEmpty ? null : map;
   }
 
   Future<void> _onLoginSuccess(String cookie) async {
