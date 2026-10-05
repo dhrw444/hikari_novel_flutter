@@ -275,7 +275,8 @@ class ApiService extends GetxService {
 class _ApiClient {
   final ckjar.CookieJar _cookieJar = ckjar.CookieJar();
   late final Dio dio =
-      Dio(BaseOptions(headers: {...kHeader, "Referer": "${LocalStorageService.instance.getWenku8Node().node}/index.php"}, responseType: ResponseType.bytes, followRedirects: false, validateStatus: (status) => status != null))
+      Dio(BaseOptions(headers: {...kHeader}, responseType: ResponseType.bytes, followRedirects: false, validateStatus: (status) => status != null))
+        ..interceptors.add(_RefererInterceptor())
         ..interceptors.add(_CloudflareInterceptor())
         ..interceptors.add(CookieManager(_cookieJar));
 
@@ -379,6 +380,21 @@ class _ApiClient {
       Log.e(e.toString());
       return Error(e.toString());
     }
+  }
+}
+
+/// 逐请求补全 Referer：`{scheme}://{host}/`
+///
+/// Cloudflare 对 reader.php / articleinfo.php 等接口的判定里，Referer 缺失一律 403
+/// （实测：仅 UA、仅 Sec-Fetch-Site、两者叠加都过不去），补上即 200。
+/// 原先写在 BaseOptions 里的 Referer 只在 Dio 首次构造时取一次节点域名，
+/// 切换自定义节点后会继续发旧域名的 Referer，故改为按请求 URI 现算。
+class _RefererInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    final uri = options.uri;
+    options.headers.putIfAbsent("Referer", () => "${uri.scheme}://${uri.host}/");
+    handler.next(options);
   }
 }
 

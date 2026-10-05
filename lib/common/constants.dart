@@ -9,7 +9,15 @@ const String kReleasesPageUrl = "https://github.com/dhrw444/hikari_novel_flutter
 
 /// 全局请求头：UA 与浏览器特征头（sec-ch-ua / sec-fetch-*）需成套出现，
 /// 只有 UA 单头会被 Cloudflare 判定为爬虫，直连节点返回 403 + "Just a moment"。
-/// 不要手写 Accept-Encoding / Host / Referer，Dart HttpClient 会自动处理。
+/// 不要手写 Accept-Encoding / Host，Dart HttpClient 会自动处理。
+///
+/// sec-fetch-site 取 same-origin（与上游 ed3e880 一致）：Cloudflare 要求 reader.php
+/// 这类接口看起来像站内页面发起，none 会被判为「直接访问 = 爬虫」。
+/// Referer 由 _RefererInterceptor 按请求 URI 逐请求补 `{scheme}://{host}/`。
+/// 实测（www.wenku8.net，HTTP/1.1 与 HTTP/2 结果一致）：
+///   无 Referer          → site=none / same-origin 均 403
+///   带本站 Referer      → site=none / same-origin 均 200（reader.php 35.9KB 正文）
+///   → Referer 是硬条件，same-origin 是语义正确的加强项（上游同值）。
 const Map<String, String> kHeader = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -19,7 +27,7 @@ const Map<String, String> kHeader = {
   "sec-ch-ua-platform": '"Windows"',
   "sec-fetch-dest": "document",
   "sec-fetch-mode": "navigate",
-  "sec-fetch-site": "none",
+  "sec-fetch-site": "same-origin",
   "sec-fetch-user": "?1",
   "upgrade-insecure-requests": "1",
 };
