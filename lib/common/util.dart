@@ -212,7 +212,7 @@ class Util {
       //独立 Dio：ApiClient 的 dio 是 followRedirects:false + CF 拦截器，不能用于 GitHub 附件下载
       final dio = Dio(
         BaseOptions(
-          headers: kUserAgent,
+          headers: kHeader,
           followRedirects: true,
           connectTimeout: const Duration(seconds: 20),
           receiveTimeout: const Duration(minutes: 10),

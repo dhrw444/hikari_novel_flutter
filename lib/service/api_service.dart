@@ -275,7 +275,7 @@ class ApiService extends GetxService {
 class _ApiClient {
   final ckjar.CookieJar _cookieJar = ckjar.CookieJar();
   late final Dio dio =
-      Dio(BaseOptions(headers: kUserAgent, responseType: ResponseType.bytes, followRedirects: false, validateStatus: (status) => status != null))
+      Dio(BaseOptions(headers: {...kHeader, "Referer": "${LocalStorageService.instance.getWenku8Node().node}/index.php"}, responseType: ResponseType.bytes, followRedirects: false, validateStatus: (status) => status != null))
         ..interceptors.add(_CloudflareInterceptor())
         ..interceptors.add(CookieManager(_cookieJar));
 
@@ -300,7 +300,7 @@ class _ApiClient {
 
   Future<Resource> getCommonData(String url) async {
     try {
-      final response = await Dio(BaseOptions(headers: kUserAgent)).get(url);
+      final response = await Dio(BaseOptions(headers: kHeader)).get(url);
       return Success(response.data);
     } catch (e) {
       return Error(e.toString());

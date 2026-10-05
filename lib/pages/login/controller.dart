@@ -25,10 +25,10 @@ class LoginController extends GetxController {
   final CookieManager cookieManager = CookieManager.instance(webViewEnvironment: webViewEnvironment);
   InAppWebViewController? inAppWebViewController;
   final GlobalKey webViewKey = GlobalKey();
-  final InAppWebViewSettings settings = InAppWebViewSettings(isInspectable: kDebugMode, userAgent: kUserAgent["User-Agent"], javaScriptEnabled: true);
+  final InAppWebViewSettings settings = InAppWebViewSettings(isInspectable: kDebugMode, userAgent: kHeader["User-Agent"], javaScriptEnabled: true);
 
   /// 桌面指纹伪装：Android WebView 改不了 Sec-CH-UA 头，CF 挑战会读 navigator 指纹交叉校验，
-  /// 此处把 JS 可读指纹统一成 Windows 桌面与 kUserAgent 一致，避免被判定机器人而拦截登录。
+  /// 此处把 JS 可读指纹统一成 Windows 桌面与 kHeader 一致，避免被判定机器人而拦截登录。
   static const String _desktopFingerprintScript = """
 (function() {
   var brands = [
