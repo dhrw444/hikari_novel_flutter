@@ -110,7 +110,12 @@ jobs:
         run: flutter doctor
 
       - name: Install NDK 26.3（btls-sys/boringssl 与 NDK r28 头文件不兼容）
-        run: sdkmanager "ndk;26.3.11579264"
+        run: |
+          # ubuntu-latest 镜像不再把 sdkmanager 放进 PATH，需用完整路径调用
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMANAGER" ] || SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "ndk;26.3.11579264"
 
       - name: Flutter pub get
         run: flutter pub get
