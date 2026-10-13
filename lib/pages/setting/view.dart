@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hikari_novel_flutter/models/common/language.dart';
 import 'package:hikari_novel_flutter/models/common/wenku8_node.dart';
-import 'package:hikari_novel_flutter/models/common/cf_worker_node.dart';
 import 'package:hikari_novel_flutter/pages/setting/controller.dart';
 import 'package:hikari_novel_flutter/widgets/custom_tile.dart';
 import 'package:jiffy/jiffy.dart';
@@ -92,24 +91,7 @@ class SettingPage extends StatelessWidget {
               title: "node".tr,
               subtitle: controller.wenku8Node.value.node,
               leading: const Icon(Icons.lan_outlined),
-              onTap: () =>
-                  showRadioListSheet(
-                    context,
-                    value: controller.wenku8Node.value,
-                    values: [(Wenku8Node.wwwWenku8Net, Wenku8Node.wwwWenku8Net.node), (Wenku8Node.wwwWenku8Cc, Wenku8Node.wwwWenku8Cc.node), (Wenku8Node.cfWorker, CfWorkerNode.displayName)],
-                    title: "node".tr,
-                  ).then((value) async {
-                    if (value != null) controller.changeWenku8Node(value);
-                  }),
-            );
-          }),
-          Obx(() {
-            if (controller.wenku8Node.value != Wenku8Node.cfWorker) return const SizedBox.shrink();
-            return NormalTile(
-              title: "中继节点域名",
-              subtitle: CfWorkerNode.relayHost,
-              leading: const Icon(Icons.dns_outlined),
-              onTap: () => _buildRelayHostDialog(context),
+              onTap: () => _showNodeSheet(context),
             );
           }),
           Obx(
@@ -135,27 +117,6 @@ class SettingPage extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  void _buildRelayHostDialog(BuildContext context) async {
-    final textController = TextEditingController(text: CfWorkerNode.relayHost);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("中继节点域名"),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: "例如 your-app.deno.dev", helperText: "填你自己部署的中继域名，不要带 https://"),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text("cancel".tr)),
-          TextButton(onPressed: () => Navigator.pop(context, textController.text), child: Text("save".tr)),
-        ],
-      ),
-    );
-    if (result == null) return;
-    controller.changeRelayHost(result);
   }
 
   void _buildColorPickerDialog(BuildContext context) async {
@@ -184,5 +145,96 @@ class SettingPage extends StatelessWidget {
     );
     if (newColor == initColor) return;
     controller.changeCustomColor(newColor);
+  }
+
+  void _showNodeSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) {
+        final titleLarge = Theme.of(context).textTheme.titleLarge!;
+        final titleMedium = Theme.of(context).textTheme.titleMedium!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 0, 10),
+                child: Text("node".tr, style: titleLarge.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              Obx(() => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final n in Wenku8Node.builtins)
+                    RadioListTile<Wenku8Node>(
+                      value: n,
+                      groupValue: controller.wenku8Node.value,
+                      title: Text(n.node, style: titleMedium),
+                      onChanged: (_) {
+                        controller.changeWenku8Node(n);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  for (final url in controller.customNodes)
+                    RadioListTile<Wenku8Node>(
+                      value: Wenku8Node.custom(url),
+                      groupValue: controller.wenku8Node.value,
+                      title: Text(url, style: titleMedium),
+                      secondary: IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () => controller.removeCustomNode(url),
+                      ),
+                      onChanged: (_) {
+                        controller.changeWenku8Node(Wenku8Node.custom(url));
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                ],
+              )),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: Text("add_custom_node".tr, style: titleMedium),
+                onTap: () => _showAddNodeDialog(context),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddNodeDialog(BuildContext context) {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("add_custom_node".tr),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: "https://your-proxy.example.com",
+            labelText: "node_url".tr,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text("cancel".tr)),
+          TextButton(
+            onPressed: () {
+              final input = textController.text.trim();
+              if (input.isNotEmpty) {
+                this.controller.addCustomNode(input);
+                Navigator.of(context).pop();
+              }
+            },
+            child: Text("save".tr),
+          ),
+        ],
+      ),
+    );
   }
 }
