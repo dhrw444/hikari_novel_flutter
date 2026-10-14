@@ -117,6 +117,16 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "ndk;26.3.11579264"
 
+      - name: Configure bindgen sysroot（修复 btls-sys 生成绑定时找不到 stdint.h）
+        run: |
+          SYSROOT="$ANDROID_HOME/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          [ -d "$SYSROOT/usr/include" ] || { echo "sysroot 不存在: $SYSROOT"; exit 1; }
+          # btls-sys(bindgen) 调 clang 时未带 --sysroot，导致 NDK 头文件里 uint32_t 等类型未定义。
+          # bindgen 读取 BINDGEN_EXTRA_CLANG_ARGS_<target>(连字符转下划线) 追加 clang 参数。
+          for t in armv7_linux_androideabi aarch64_linux_android i686_linux_android x86_64_linux_android; do
+            echo "BINDGEN_EXTRA_CLANG_ARGS_${t}=--sysroot=$SYSROOT" >> "$GITHUB_ENV"
+          done
+
       - name: Flutter pub get
         run: flutter pub get
 
